@@ -1,0 +1,6 @@
+{
+  "name": "kanban-loop",
+  "description": "Turn a GitHub Projects v2 board into a self-running, loop-engineered development loop: a resident Claude Code dispatcher polls the board, dispatches implement/review subagents, and moves issue status — never auto-merging.",
+  "version": "0.1.0",
+  "author": { "name": "kanban-loop" }
+}

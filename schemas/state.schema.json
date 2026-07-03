@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/<owner>/kanban-loop/schemas/state.schema.json",
+  "title": "kanban-loop state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["date", "dispatchedToday", "issues"],
+  "properties": {
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "Local date of the current daily window (YYYY-MM-DD)."
+    },
+    "dispatchedToday": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Dispatches issued during the current date window."
+    },
+    "issues": {
+      "type": "object",
+      "description": "Keyed by '<owner/repo>#<num>'.",
+      "propertyNames": { "pattern": "^[^/]+/[^#]+#\\d+$" },
+      "additionalProperties": { "$ref": "#/$defs/issueState" }
+    }
+  },
+  "$defs": {
+    "issueState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "pr", "reviewRounds", "subagent", "workspace", "updatedAt"],
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": ["implementing", "reviewing", "escalated", "idle"]
+        },
+        "pr": { "type": ["integer", "null"], "minimum": 1 },
+        "reviewRounds": { "type": "integer", "minimum": 0 },
+        "subagent": { "type": ["string", "null"], "enum": ["running", null] },
+        "workspace": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

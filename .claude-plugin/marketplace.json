@@ -1,0 +1,11 @@
+{
+  "name": "kanban-loop",
+  "owner": { "name": "kanban-loop" },
+  "plugins": [
+    {
+      "name": "kanban-loop",
+      "source": "./",
+      "description": "Loop-engineered GitHub Projects board runner for Claude Code."
+    }
+  ]
+}

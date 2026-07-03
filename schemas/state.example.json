@@ -1,0 +1,16 @@
+{
+  "date": "2026-07-04",
+  "dispatchedToday": 7,
+  "issues": {
+    "acme/web#123": {
+      "phase": "reviewing", "pr": 456, "reviewRounds": 1,
+      "subagent": "running", "workspace": "./workspaces/web-123",
+      "updatedAt": "2026-07-04T09:12:33Z"
+    },
+    "acme/web#130": {
+      "phase": "escalated", "pr": 461, "reviewRounds": 3,
+      "subagent": null, "workspace": "./workspaces/web-130",
+      "updatedAt": "2026-07-04T08:40:01Z"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "owner": "acme",
+  "ownerType": "organization",
+  "projectNumber": 12,
+  "statusField": "Status",
+  "requiredLabel": "ai-ready",
+  "workspaceRoot": "./workspaces",
+  "branchPrefix": "ai/",
+  "caps": {
+    "maxConcurrent": 3,
+    "maxReviewRounds": 3,
+    "maxDispatchesPerDay": 20
+  },
+  "reviewEffort": "high"
+}
