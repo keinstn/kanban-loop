@@ -1,5 +1,6 @@
 {
   "name": "kanban-loop",
+  "description": "Marketplace for the kanban-loop plugin — a loop-engineered GitHub Projects board runner for Claude Code.",
   "owner": { "name": "kanban-loop" },
   "plugins": [
     {

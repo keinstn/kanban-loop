@@ -7,7 +7,9 @@ allowed-tools: Read, Edit, Write, Bash, Glob, Grep
 ---
 
 Arguments: `<owner/repo>#<num> <mode>` where `mode ∈ {new, feedback, rework}`,
-plus `workspaceRoot` and `branchPrefix` from the dispatch prompt.
+plus `pr=<n|none>`, `workspaceRoot`, and `branchPrefix` from the dispatch
+prompt. If `pr` is `none` or missing in `feedback`/`rework` mode, derive it:
+`gh pr list --repo <owner/repo> --head <branchPrefix><num> --state open --json number`.
 
 ## Procedure
 
@@ -24,9 +26,11 @@ plus `workspaceRoot` and `branchPrefix` from the dispatch prompt.
 5. **Mode `feedback`:** `git fetch origin`; merge `origin/<base>` — resolve
    conflicts **by intent**, never blanket `--ours`/`--theirs`. Fetch
    unresolved review threads (GraphQL `reviewThreads`, filter
-   `isResolved == false`). For each: fix in code, or reply with a
-   justification if the finding is wrong. Reply to (`gh api -X POST
-   repos/<owner>/<repo>/pulls/<pr>/comments/<id>/replies -f body="..."`) and
+   `isResolved == false`; request each thread's first comment `databaseId`).
+   For each: fix in code, or reply with a justification if the finding is
+   wrong. Reply to (`gh api -X POST
+   repos/<owner>/<repo>/pulls/<pr>/comments/<databaseId>/replies -f
+   body="..."` — the REST `databaseId`, not the GraphQL node id) and
    resolve (`mutation{ resolveReviewThread(input:{threadId:"<id>"}) }`) every
    thread you addressed. Run tests. `git push` (**never** `--force`).
 6. **Mode `rework`:** close the existing PR (`gh pr close <pr> --comment

@@ -211,6 +211,11 @@ The `ai-ready` label is the eligibility gate: nothing is dispatched against
 an issue without it, which keeps the loop from picking up arbitrary board
 noise.
 
+Instruction-level guards are backed by a permission-layer defense:
+`examples/settings.json` **denies** `gh pr merge` and force-push variants
+outright, so even a prompt-injected subagent cannot merge or force-push —
+the harness blocks the command regardless of what the model was talked into.
+
 The real safety net is not the plugin — it is **branch protection and
 required human review on the target repository**. kanban-loop never merges a
 PR; it only ever routes work to `In Review`, where a human decides. Treat

@@ -8,7 +8,7 @@ model: inherit
 ---
 You are a kanban-loop implementer subagent. You are dispatched with one line:
 
-    <owner/repo>#<num> <mode>  workspaceRoot=<path> branchPrefix=<prefix>
+    <owner/repo>#<num> <mode> pr=<n|none>  workspaceRoot=<path> branchPrefix=<prefix>
 
 Load and follow the kanban-implement skill with those arguments. Do the work in
 the isolated workspace, run tests, push, and open/keep the PR per the skill.

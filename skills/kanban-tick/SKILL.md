@@ -23,10 +23,10 @@ Status and `state.json` — subagents never touch either. No arguments; reads
    `dispatchedToday=0`. Rollover only resets the daily counter, not issues.
 4. **Collect finished subagent results.** For each issue with
    `subagent == "running"`, check whether its background subagent's result
-   notification arrived. If a result JSON is available, parse it and apply the
-   verdict/outcome action (status move + state update). If the subagent is
-   gone with no result, clear `subagent` and leave status as-is (reconcile
-   next tick).
+   notification arrived. If a result JSON is available, parse it and apply
+   the action from the **Result handling** table below (status move + state
+   update). If the subagent is gone with no result, clear `subagent` and
+   leave status as-is (reconcile next tick).
 5. **Fetch project metadata** — `projectId`, Status `fieldId`, option IDs
    (once per tick, held in memory).
 6. **Poll the board** — one GraphQL query (below). Keep only items whose
@@ -37,24 +37,40 @@ Status and `state.json` — subagents never touch either. No arguments; reads
    branch `ai/<num>` via `gh pr list`. Accept best-effort.
 8. **Route** — for each eligible item not already in-flight (`subagent` not
    `running`, phase not `escalated`), compute (subagent, mode): `Todo` →
-   implementer `new`; `In Progress` after a send-back → implementer
-   `feedback`; `Rework` → implementer `rework`; `Agent Review` with an open
-   PR → reviewer.
+   implementer `new`; `In Progress` with `reviewRounds > 0` → implementer
+   `feedback`; `In Progress` with `reviewRounds == 0` and no open PR →
+   implementer `new` (stalled pre-PR pass); `Rework` → implementer `rework`;
+   `Agent Review` with an open PR → reviewer.
 9. **Enforce caps** — count in-flight (`subagent == running`). Skip dispatch
    when `inFlight >= maxConcurrent`. Skip all dispatch when
-   `dispatchedToday >= maxDispatchesPerDay` (log `dailyCapReached`, post
-   nothing to the board).
+   `dispatchedToday >= maxDispatchesPerDay` (mention it in the summary only —
+   no extra state fields, nothing posted to the board).
 10. **Dispatch** — for each routed issue within caps, launch via the **Agent
     tool** with `subagent_type: "kanban-implementer"` (or
-    `"kanban-reviewer"`), running in the background, with the dispatch prompt
-    (issue ref + mode/PR + `workspaceRoot`/`branchPrefix`/`reviewEffort`). Set
-    `issues[key].subagent = "running"`, `phase`, `workspace`, `updatedAt`;
-    increment `dispatchedToday`.
+    `"kanban-reviewer"`), running in the background. Dispatch prompts:
+    - implementer: `<owner/repo>#<num> <mode> pr=<n|none> workspaceRoot=<path> branchPrefix=<prefix>`
+      (pass the open PR number for `feedback`/`rework`; `none` otherwise)
+    - reviewer: `<owner/repo>#<num> <pr> workspaceRoot=<path> reviewEffort=<level>`
+
+    Set `issues[key].subagent = "running"`, `phase`, `workspace`,
+    `updatedAt`; increment `dispatchedToday`.
 11. **Write state.json** — single writer; write atomically (temp file +
     rename).
 12. **End the turn with a one-line summary**, e.g. `tick: polled 5 /
     eligible 3 / dispatched 2 (impl 1, review 1) / inFlight 2 / today 7/20`.
     If the daily cap tripped, append `— daily cap reached, dispatch paused`.
+
+## Result handling
+
+| Result from subagent | Action |
+|----------------------|--------|
+| review `verdict: pass` | move issue → `In Review`; phase → `idle`. |
+| review `verdict: needs_changes` | if `reviewRounds + 1 >= maxReviewRounds`: move → `In Review`, comment `Human attention required: agent review loop limit reached.`, phase → `escalated`. Else: increment `reviewRounds`, move → `In Progress`, phase → `implementing` (next dispatch is `feedback`). |
+| implement `outcome: done` | move issue → `Agent Review`; record `pr`; phase → `reviewing`. |
+| implement `outcome: blocked` | move → `In Review`; comment `Human attention required: <note>.`; phase → `escalated`. |
+
+Never move an issue out of `In Review` or `Done` — those are human columns
+and final.
 
 ## Board poll GraphQL (shape)
 
@@ -77,7 +93,36 @@ query($owner:String!, $number:Int!, $cursor:String){
 
 Invoke via `gh api graphql -f query='…' -f owner=… -F number=… [-f cursor=…]`;
 paginate only on `hasNextPage` (one page of 100 is the expected case). Open-PR
-lookup: `gh pr list --repo <owner/repo> --head ai/<num> --state open --json number`.
+lookup: `gh pr list --repo <owner/repo> --head <branchPrefix><num> --state open --json number`.
+
+## Board mutations
+
+Project metadata (step 5; use `user(login:)` when `ownerType == "user"`):
+
+```graphql
+query($owner:String!, $number:Int!){
+  organization(login:$owner){
+    projectV2(number:$number){
+      id
+      field(name:"Status"){ ... on ProjectV2SingleSelectField { id options { id name } } }
+    }
+  }
+}
+```
+
+Status move (Result handling):
+
+```graphql
+mutation($project:ID!,$item:ID!,$field:ID!,$option:String!){
+  updateProjectV2ItemFieldValue(input:{
+    projectId:$project, itemId:$item, fieldId:$field,
+    value:{ singleSelectOptionId:$option }
+  }){ projectV2Item { id } }
+}
+```
+
+Escalation comment:
+`gh issue comment <num> --repo <owner/repo> --body "Human attention required: ..."`.
 
 ## Stop
 
