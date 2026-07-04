@@ -19,6 +19,36 @@ They never touch the board or state directly. **PRs are never auto-merged.**
 The terminal state of every successful pass is the `In Review` column — a
 human always makes the merge decision.
 
+### Architecture
+
+```mermaid
+flowchart TB
+  author([human: author issue + label ai-ready]) --> todo[Todo]
+
+  subgraph tick["kanban-tick — /loop 2m (dispatcher)"]
+    todo --> impl[[kanban-implementer]]
+    rework[Rework] --> impl
+    impl -->|done| areview[Agent Review]
+    areview --> rev[[kanban-reviewer: gh pr checks + tests + /code-review]]
+    rev -->|needs_changes| inprog[In Progress]
+    inprog --> impl
+    rev -->|pass| inreview[In Review]
+    rev -->|round cap| inreview
+    impl -->|blocked| inreview
+  end
+
+  inreview -->|human reviews & MERGES| merged([merged to base])
+  merged --> done[Done]
+
+  classDef human fill:#eee,stroke:#999;
+  class author,merged human;
+```
+
+The dispatcher (`/loop 2m /kanban-tick`) is the only writer of board Status
+and `state.json`; the two subagents are pure workers that return a JSON
+result. Nothing is ever auto-merged — every path ends at `In Review`, where a
+human decides.
+
 ### The five moves
 
 | Move | Where it lives in kanban-loop |
