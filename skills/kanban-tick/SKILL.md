@@ -45,12 +45,14 @@ Status and `state.json` — subagents never touch either. No arguments; reads
    when `inFlight >= maxConcurrent`. Skip all dispatch when
    `dispatchedToday >= maxDispatchesPerDay` (mention it in the summary only —
    no extra state fields, nothing posted to the board).
-10. **Dispatch** — for each routed issue within caps, launch via the **Agent
-    tool** with `subagent_type: "kanban-implementer"` (or
-    `"kanban-reviewer"`), running in the background. Dispatch prompts:
-    - implementer: `<owner/repo>#<num> <mode> pr=<n|none> workspaceRoot=<path> branchPrefix=<prefix>`
-      (pass the open PR number for `feedback`/`rework`; `none` otherwise)
-    - reviewer: `<owner/repo>#<num> <pr> workspaceRoot=<path> reviewEffort=<level>`
+10. **Dispatch** — for each routed issue within caps:
+    - If the routed mode is implementer `new` and the issue's current board
+      Status is `Todo`, move it to `In Progress` (mutation below) first.
+    - Launch via the **Agent tool** with `subagent_type: "kanban-implementer"`
+      (or `"kanban-reviewer"`), running in the background. Dispatch prompts:
+      - implementer: `<owner/repo>#<num> <mode> pr=<n|none> workspaceRoot=<path> branchPrefix=<prefix>`
+        (pass the open PR number for `feedback`/`rework`; `none` otherwise)
+      - reviewer: `<owner/repo>#<num> <pr> workspaceRoot=<path> reviewEffort=<level>`
 
     Set `issues[key].subagent = "running"`, `phase`, `workspace`,
     `updatedAt`; increment `dispatchedToday`.
@@ -110,7 +112,8 @@ query($owner:String!, $number:Int!){
 }
 ```
 
-Status move (Result handling):
+Status move (used by both the Result handling table and step 10's
+`Todo` → `In Progress` dispatch move):
 
 ```graphql
 mutation($project:ID!,$item:ID!,$field:ID!,$option:String!){

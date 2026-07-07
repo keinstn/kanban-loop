@@ -132,6 +132,15 @@ running subagent and **no** open PR is treated as a stalled `new` pass and
 re-dispatched as `new`. Rationale: covers a subagent that died before creating a
 PR without inventing recovery machinery.
 
+DECISION: dispatching a `Todo` issue as implementer `new` moves it to
+`In Progress` on the board immediately, before the subagent launches.
+Rationale: otherwise the board shows `Todo` for the whole implement pass,
+indistinguishable from work that hasn't been picked up yet. This also means
+the stalled-`new`-pass recovery rule above now covers a subagent that dies
+before opening a PR regardless of whether it started from `Todo` or from a
+review send-back — both leave the issue sitting in `In Progress` with
+`reviewRounds == 0` and no open PR.
+
 ### 3.4 Verdict / result handling (dispatcher applies on the next tick)
 
 | Signal from subagent | Dispatcher action |
@@ -171,7 +180,8 @@ query($owner:String!, $number:Int!){
 }
 ```
 
-Status move mutation:
+Status move mutation (used by §3.4 result handling and by step 10's
+`Todo` → `In Progress` dispatch move):
 
 ```graphql
 mutation($project:ID!,$item:ID!,$field:ID!,$option:String!){
@@ -271,8 +281,10 @@ current working directory (the workspace root).
 9. **Enforce caps** — count in-flight (`subagent == running`). Skip dispatch when
    `inFlight >= maxConcurrent`. Skip all dispatch when
    `dispatchedToday >= maxDispatchesPerDay` (log `dailyCapReached`, post nothing).
-10. **Dispatch** — for each routed issue within caps, launch the matching agent
-    as a **background** subagent (Task tool, `run_in_background`) with the prompt
+10. **Dispatch** — for each routed issue within caps: if the routed mode is
+    implementer `new` and the issue's current board Status is `Todo`, move it
+    to `In Progress` (§3.5) first; then launch the matching agent as a
+    **background** subagent (Task tool, `run_in_background`) with the prompt
     in §6.3. Set `issues[key].subagent = "running"`, `phase`, `workspace`,
     `updatedAt`; increment `dispatchedToday`.
 11. **Write state.json** (single writer; write atomically — temp file + rename).
