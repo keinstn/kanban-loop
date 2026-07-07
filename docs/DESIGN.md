@@ -15,9 +15,8 @@ self-running development loop. A single **resident Claude Code session** (the
 *dispatcher*) runs in a workspace root directory and executes a recurring tick
 via `/loop 2m /kanban-tick`. Each tick polls the board, dispatches per-issue
 subagents, collects finished subagent results, moves issue statuses, and
-enforces safety caps. It is harness-native and deliberately lightweight: it
-replaces a heavier external orchestrator ("baton") that spawned `claude -p` per
-issue.
+enforces safety caps. It is harness-native and deliberately lightweight — a
+single long-lived session rather than a separate process per issue.
 
 The dispatcher is the **only** writer of board Status and `state.json`.
 Subagents are pure workers: they receive an issue ref + mode, do the work, and

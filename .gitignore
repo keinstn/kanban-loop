@@ -1,0 +1,3 @@
+# kanban-loop runtime artifacts (generated in the dispatcher's workspace root)
+workspaces/
+state.json

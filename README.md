@@ -5,12 +5,12 @@ self-running, loop-engineered development loop.
 
 ## 1. What it is
 
-kanban-loop replaces a heavier external orchestrator ("baton" spawning
-`claude -p` per issue) with a single **resident Claude Code session** — the
-*dispatcher* — running `/loop 2m /kanban-tick` in a workspace root directory.
-Each tick polls the board, dispatches per-issue subagents in the background,
-collects finished subagent results on the following tick, moves issue
-statuses, and enforces hard safety caps.
+kanban-loop drives a GitHub Projects v2 board as a self-running development
+loop from a single **resident Claude Code session** — the *dispatcher* —
+running `/loop 2m /kanban-tick` in a workspace root directory. Each tick polls
+the board, dispatches per-issue subagents in the background, collects finished
+subagent results on the following tick, moves issue statuses, and enforces
+hard safety caps.
 
 The dispatcher is the **only** writer of board Status and `state.json`.
 Subagents are pure workers: they receive an issue reference and a mode, do
@@ -138,10 +138,10 @@ implement pass.
 
 ## 4. Install
 
-From the marketplace (once published):
+From the marketplace:
 
 ```
-/plugin marketplace add <owner>/kanban-loop
+/plugin marketplace add keinstn/kanban-loop
 /plugin install kanban-loop@kanban-loop
 ```
 
