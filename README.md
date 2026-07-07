@@ -26,7 +26,7 @@ flowchart TB
   author([human: author issue + label ai-ready]) --> todo[Todo]
 
   subgraph tick["kanban-tick — /loop 2m (dispatcher)"]
-    todo --> impl[[kanban-implementer]]
+    todo -->|dispatch: move to In Progress| impl[[kanban-implementer]]
     rework[Rework] --> impl
     impl -->|done| areview[Agent Review]
     areview --> rev[[kanban-reviewer: gh pr checks + tests + /code-review]]
@@ -89,10 +89,15 @@ An issue is eligible only if it carries the label `requiredLabel` (default
 | `Rework` | — | dispatch implement (close PR, reset branch, fresh pass) | `kanban-implementer` | `rework` |
 | `Agent Review` | open PR exists | dispatch review | `kanban-reviewer` | — |
 
+Dispatching a `Todo` issue moves it to `In Progress` on the board immediately,
+before the implementer subagent launches — the board shouldn't still say
+`Todo` while a pass is running.
+
 `In Progress` with `reviewRounds == 0` and an already-running subagent is
 in-flight and skipped. `In Progress` with `reviewRounds == 0`, no running
 subagent, and no open PR is a stalled `new` pass and is re-dispatched as
-`new` (covers a subagent that died before opening a PR).
+`new` (covers a subagent that died before opening a PR, whether it started
+from `Todo` or from a review send-back).
 
 ### Verdict handling
 
