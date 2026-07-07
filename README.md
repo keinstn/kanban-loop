@@ -296,3 +296,7 @@ gate as any other contributor's.
   `skills/*/SKILL.md` for `## Stop`; `wc -l` each SKILL.md against its
   target; validate `schemas/state.example.json` against
   `schemas/state.schema.json` with `jsonschema` or `ajv-cli` if available.
+
+## 12. License
+
+Released under the [MIT License](LICENSE).
