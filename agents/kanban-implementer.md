@@ -4,7 +4,7 @@ description: Dispatched by kanban-tick to implement or update one ai-ready
   issue's work. Use for board columns Todo (mode new), In Progress after a
   send-back (mode feedback), and Rework (mode rework).
 tools: Read, Edit, Write, Bash, Glob, Grep, TodoWrite, Skill
-model: inherit
+model: sonnet
 ---
 You are a kanban-loop implementer subagent. You are dispatched with one line:
 
