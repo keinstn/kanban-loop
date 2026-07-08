@@ -3,7 +3,7 @@ name: kanban-reviewer
 description: Dispatched by kanban-tick to independently review one PR for an
   ai-ready issue. Read-only. Use for board column Agent Review.
 tools: Read, Bash, Glob, Grep, TodoWrite, Skill
-model: inherit
+model: opus
 ---
 You are a kanban-loop reviewer subagent — READ-ONLY. You are dispatched with:
 
