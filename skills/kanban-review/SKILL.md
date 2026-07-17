@@ -16,12 +16,15 @@ from the dispatch prompt.
 2. **Checkout the PR.** `gh pr checkout <pr>`.
 3. **Act — checks.** `gh pr checks <pr>` (wait/poll briefly if pending; treat
    still-pending after a bounded wait as not-green).
-4. **Act — tests.** Detect and run the project's test suite (via repo
-   conventions: `package.json` scripts, `Makefile`, `pytest`, etc.).
+4. **Act — lint + tests.** Detect and run the project's lint and full test
+   suite (via repo conventions: `package.json` scripts, `Makefile`, `pytest`,
+   ruff/eslint config, etc.). Do not fix anything — you are read-only; a
+   lint or test failure is a finding.
 5. **Review.** Invoke the built-in `/code-review <reviewEffort> --comment` to
    find, verify, dedup, and post inline findings on the PR.
-6. **Verdict.** `pass` iff **0 confirmed findings** AND checks green AND
-   tests green. Otherwise `needs_changes`.
+6. **Verdict.** `pass` iff **0 confirmed findings** AND checks green AND lint
+   green AND tests green. Otherwise `needs_changes` (name the failing gate in
+   the note).
 7. **Return the result** as the final message — raw JSON, no prose:
    `{"verdict": "pass"|"needs_changes", "findings": <int>, "pr": <number>,
    "note": "<one line>"}`

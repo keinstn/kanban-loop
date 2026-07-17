@@ -106,8 +106,11 @@ from `Todo` or from a review send-back).
 | review `verdict: pass` | move issue → `In Review`; phase → `idle` |
 | review `verdict: needs_changes` | if `reviewRounds + 1 >= maxReviewRounds`: move → `In Review`, post comment `Human attention required: agent review loop limit reached.`, phase → `escalated`. Else: increment `reviewRounds`, move → `In Progress`, phase → `implementing` (next dispatch is `feedback`). |
 | implement `outcome: done` | move issue → `Agent Review`; record `pr`; phase → `reviewing`. |
+| implement `outcome: escalate_model` | self-heal: retry on the escalated model (sonnet→opus), or hand to a human if no rung is left. |
+| implement `outcome: needs_decision` | ask via AskUserQuestion when `interactiveDecisions`, else post the question to the issue and move → `In Review`. |
 | implement `outcome: blocked` | move → `In Review`; post comment `Human attention required: <note>.`; phase → `escalated`. |
-| subagent recorded `running` but no result and no live subagent | reconcile: clear `subagent`, leave issue where the board has it, re-evaluate next tick. |
+| subagent recorded `running` but no result and no live subagent | reconcile: clear the in-flight fields, leave issue where the board has it, re-evaluate next tick. |
+| running subagent stalled (`elapsed > stallTimeoutMinutes`) | watchdog stops it and applies the self-healing ladder (see below). |
 
 ### Caps and escalation
 
@@ -124,6 +127,36 @@ Three hard caps are enforced **before** dispatch, read from
 `reviewRounds` counts **completed** review→send-back cycles: the
 `maxReviewRounds`-th `needs_changes` escalates instead of looping another
 implement pass.
+
+### Self-healing
+
+The dispatcher recovers subagents that are *alive but stuck*, not just ones that
+died — all inside the tick, with no separate watchdog process:
+
+- **Stall watchdog.** Every dispatch records when it started. If a subagent runs
+  longer than `stallTimeoutMinutes` (default 20), the tick stops it and
+  re-dispatches. This is a wall-clock timeout — background subagents emit no
+  progress signal, so "stuck" means "running too long", not true progress
+  detection.
+- **Model escalation (sonnet→opus).** The implementer runs on `sonnet` by
+  default. A stall, or an `escalate_model` result (the implementer self-assesses
+  that a task is too hard *before* doing work), re-dispatches it on `opus`. The
+  ladder is exactly one rung: after opus, the issue goes to a human. There is no
+  human-set "difficulty" label — hardness is discovered, not pre-declared.
+- **`maxAttempts` backstop.** After that many consecutive dispatches for one work
+  unit (default 3), the issue is handed to a human regardless.
+- **Decisions.** For a genuine judgment call the implementer returns
+  `needs_decision` with a question and options. With `interactiveDecisions: true`
+  the tick asks you via a prompt; otherwise (the default, for unattended loops)
+  it posts the question to the issue and routes it to `In Review`.
+- **Report.** Each tick appends what changed — **shipped** (passed review →
+  `In Review`), **advanced** (PR opened → `Agent Review`), **escalated ↑** (model
+  bumped), **stalled** (watchdog fired), and **needs input** (handed to a human).
+
+Escalation cannot tell a genuinely hard task from a transient infrastructure hang
+(network, `gh`); bumping the model won't fix the latter, but the ladder is
+bounded (one rung, then a human), so the cost is capped and a human is always
+reached.
 
 ## 3. Prerequisites
 
@@ -170,7 +203,14 @@ workspace root and edit it:
     "maxReviewRounds": 3,
     "maxDispatchesPerDay": 20
   },
-  "reviewEffort": "high"
+  "reviewEffort": "high",
+  "stallTimeoutMinutes": 20,
+  "maxAttempts": 3,
+  "models": {
+    "implementer": "sonnet",
+    "escalated": "opus"
+  },
+  "interactiveDecisions": false
 }
 ```
 
@@ -184,6 +224,15 @@ Field notes:
 - `workspaceRoot`: dir (relative to cwd) holding per-issue clones.
 - `branchPrefix`: branch name prefix; branch = `<branchPrefix><issueNumber>`.
 - `reviewEffort`: passed to `/code-review` (e.g. `low|medium|high`).
+- `stallTimeoutMinutes`: watchdog wall-clock timeout; a subagent running longer
+  is stopped and re-dispatched (default 20).
+- `maxAttempts`: consecutive dispatches per work unit before handing to a human
+  (default 3).
+- `models.implementer` / `models.escalated`: the base and escalated implementer
+  models (default `sonnet` / `opus`). The reviewer is always `opus`.
+- `interactiveDecisions`: `true` surfaces `needs_decision` via a prompt; `false`
+  (default) posts it to the issue and routes to `In Review`. Keep `false` for
+  unattended loops.
 
 ## 6. Startup
 
@@ -213,12 +262,14 @@ best-effort from the live board and open PRs (`reconcileFull`). Schema:
   "issues": {
     "acme/web#123": {
       "phase": "reviewing", "pr": 456, "reviewRounds": 1,
-      "subagent": "running", "workspace": "./workspaces/web-123",
-      "updatedAt": "2026-07-04T09:12:33Z"
+      "subagent": "running", "subagentId": "task_9f2a",
+      "dispatchedAt": "2026-07-04T09:12:33Z", "attempts": 1, "model": "opus",
+      "workspace": "./workspaces/web-123", "updatedAt": "2026-07-04T09:12:33Z"
     },
     "acme/web#130": {
       "phase": "escalated", "pr": 461, "reviewRounds": 3,
-      "subagent": null, "workspace": "./workspaces/web-130",
+      "subagent": null, "subagentId": null, "dispatchedAt": null,
+      "attempts": 0, "model": null, "workspace": "./workspaces/web-130",
       "updatedAt": "2026-07-04T08:40:01Z"
     }
   }
@@ -231,8 +282,19 @@ best-effort from the live board and open PRs (`reconcileFull`). Schema:
   - `pr`: the open PR number, or `null`.
   - `reviewRounds`: completed review send-backs.
   - `subagent`: `"running"` or `null` — never any other value.
+  - `subagentId`: background task id of the running subagent (for the watchdog's
+    `TaskStop`), or `null`.
+  - `dispatchedAt`: when the current subagent was dispatched (basis for the stall
+    timeout), or `null`.
+  - `attempts`: consecutive dispatches for the current work unit; resets on a
+    column change.
+  - `model`: the model of the current/last dispatch (encodes the escalation
+    rung), or `null`.
   - `workspace`: the per-issue clone directory.
   - `updatedAt`: ISO 8601 timestamp of the last state change.
+
+  The four self-healing fields (`subagentId`, `dispatchedAt`, `attempts`,
+  `model`) are optional — old or reconciled state without them stays valid.
 
 ## 8. Security notes
 
