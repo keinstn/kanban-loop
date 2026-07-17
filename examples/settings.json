@@ -7,7 +7,9 @@
       "Read",
       "Write",
       "Edit",
-      "Agent"
+      "Agent",
+      "TaskStop",
+      "AskUserQuestion"
     ],
     "deny": [
       "Bash(gh pr merge:*)",

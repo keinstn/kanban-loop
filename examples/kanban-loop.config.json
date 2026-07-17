@@ -11,5 +11,12 @@
     "maxReviewRounds": 3,
     "maxDispatchesPerDay": 20
   },
-  "reviewEffort": "high"
+  "reviewEffort": "high",
+  "stallTimeoutMinutes": 20,
+  "maxAttempts": 3,
+  "models": {
+    "implementer": "sonnet",
+    "escalated": "opus"
+  },
+  "interactiveDecisions": false
 }

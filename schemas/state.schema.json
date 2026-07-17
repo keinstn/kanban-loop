@@ -36,6 +36,24 @@
         "pr": { "type": ["integer", "null"], "minimum": 1 },
         "reviewRounds": { "type": "integer", "minimum": 0 },
         "subagent": { "type": ["string", "null"], "enum": ["running", null] },
+        "subagentId": {
+          "type": ["string", "null"],
+          "description": "Background task id of the running subagent, for TaskStop by the watchdog. Null when idle."
+        },
+        "dispatchedAt": {
+          "type": ["string", "null"],
+          "format": "date-time",
+          "description": "When the current subagent was dispatched; basis for the stall timeout. Null when idle."
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Consecutive dispatches for the current work unit (stall retries + model escalation); resets to 0 when the issue advances to a new column."
+        },
+        "model": {
+          "type": ["string", "null"],
+          "description": "Model of the current/last dispatch (e.g. 'sonnet', 'opus'). Encodes the implementer escalation rung. Null when idle."
+        },
         "workspace": { "type": "string" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
